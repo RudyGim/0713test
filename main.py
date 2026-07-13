@@ -102,16 +102,17 @@ if seoul_df is not None and yang_df is not None and power_df is not None:
         with col3:
             # ② 기온 구간별 평균 전력수요 (막대그래프)
             st.subheader("② 기온 구간별 평균 전력수요")
-            # 5도 단위 기온 구간 설정 및 한글 라벨링
-            bins = list(range(-20, 45, 5))
-            df_power['기온구간'] = pd.cut(df_power['서울_기온'], bins=bins, right=False)
             
-            # 카테고리 순서가 꼬이지 않도록 데이터 가공
-            grouped_interval = df_power.groupby('기온구간', observed=True)['전력수요(MWh)'].mean()
-            # X축 레이블을 친숙한 문자열 형태로 변환
-            grouped_interval.index = grouped_interval.index.map(lambda x: f"{int(x.left)}~{int(x.right)}°C")
+            # 오류 해결을 위한 대안: 산술 연산으로 5도 단위 내림 처리 후 그룹화하여 정형 데이터프레임 빌드
+            df_power['기온그룹값'] = (df_power['서울_기온'] // 5) * 5
+            grouped_interval = df_power.groupby('기온그룹값')['전력수요(MWh)'].mean().reset_index()
             
-            st.bar_chart(grouped_interval)
+            # 레이블 가독성을 위해 "X ~ Y °C" 형태의 문자열 컬럼 생성
+            grouped_interval['기온구간'] = grouped_interval['기온그룹값'].astype(int).astype(str) + " ~ " + (grouped_interval['기온그룹값'] + 5).astype(int).astype(str) + "°C"
+            
+            # Streamlit 차트 렌더링용 인덱스 설정
+            chart_data_2 = grouped_interval.set_index('기온구간')['전력수요(MWh)']
+            st.bar_chart(chart_data_2)
             st.caption("💡 기온이 매우 낮을 때와 매우 높을 때 각각 냉난방 부하가 걸려 평균 전력수요가 크게 늘어나는 것을 볼 수 있습니다.")
             
         with col4:
@@ -123,18 +124,3 @@ if seoul_df is not None and yang_df is not None and power_df is not None:
             
 else:
     st.info("💡 웹앱을 구동하기 전, CSV 데이터 파일들이 같은 디렉토리(폴더)에 준비되어 있는지 먼저 확인해 주세요.")
-```eof
-
----
-
-### 🛠️ 설치 및 웹앱 실행 가이드
-
-1. **파일 구성**: 실행하려는 폴더 안에 아래 4개 파일이 함께 있는지 확인해 주세요.
-   - `app.py` (위에서 생성한 코드 파일)
-   - `서울_기온.csv`
-   - `양평_기온.csv`
-   - `전력수요.csv`
-2. **필요 패키지 설치**: 터미널 환경에서 라이브러리를 설치합니다.
-   
-```bash
-   pip install streamlit pandas
